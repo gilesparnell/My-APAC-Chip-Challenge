@@ -1,0 +1,16 @@
+{
+  "name": "device",
+  "version": "0.0.0",
+  "description": "",
+  "main": "device",
+  "dependencies": {
+     "node-constants" : "^0.0.2",
+     "mqtt" : "^1.1.5",
+     "aws-iot-device-sdk" : ""
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC"
+}

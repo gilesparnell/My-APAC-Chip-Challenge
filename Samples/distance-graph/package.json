@@ -1,0 +1,20 @@
+{
+  "name": "mqtt1",
+  "version": "0.0.0",
+  "description": "",
+  "main": "index.js",
+  "dependencies": {
+    "bleno": "^0.1.13",
+    "express": "^4.13.3",
+    "mqtt": "^1.1.5",
+    "noble": "^1.0.1",
+    "socket.io": "^1.3.7",
+    "node-constants" : "^0.0.2",
+    "sylvester": "^0.0.21"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC"
+}

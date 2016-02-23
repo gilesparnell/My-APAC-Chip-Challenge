@@ -1,0 +1,14 @@
+[Unit]
+Description=AWS CHIP Registration
+After=network-online.target
+
+[Service]
+Restart=on-failure
+RestartSec=10s
+Environment="NODE_PATH=/usr/lib/node_modules"
+Environment="AVAHI_COMPAT_NOWARN=1"
+Environment="HOME=/home/chip/startup"
+ExecStart=/usr/bin/node /home/chip/startup/register-chip.js
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,220 @@
+﻿<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!--
+/*
+ * Copyright 2010-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * You may not use this file except in compliance with the License.
+ * A copy of the License is located at
+ *
+ * http://aws.amazon.com/apache2.0
+ *
+ * or in the "license" file accompanying this file. This file is distributed
+ * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ * express or implied. See the License for the specific language governing
+ * permissions and limitations under the License.
+ *
+ * Author: Adam Larter, Solutions Architect, AWS
+ * Created: February, 2016
+ * 
+ * For internal Amazon purposes only! Not for distribution.
+ * Contact author for more details
+ * 
+ */
+
+-->
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+        
+    <script src="scripts/smoothie.js"></script>
+    <script src="//code.jquery.com/jquery-1.11.0.min.js"></script>
+    <script src="//cdn.socket.io/socket.io-1.2.1.js"></script>
+    <script src="scripts/tween-min.js" type="text/javascript"></script>
+    <script src="scripts/steelseries-min.js" type="text/javascript"></script>
+    
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+ 
+    <style>
+        .detailLabel
+        {
+            font-size: 10pt;
+            font-family:'Courier New';
+            color:#999999;
+            text-align:right;
+        }
+        .detailValue
+        {
+            font-size: 10pt;
+            font-family:'Courier New';
+            color:green;
+        }
+    </style>
+</head>
+
+<body bgcolor="black" onload="createTimeline()">
+
+<div id="divFeedback"></div>
+
+	<table border=0>
+		<tr>
+			<td colspan=4>
+				<H1 style="font-family:arial; font:20px; color:white">Realtime BLE Detection</H1>
+			</td>
+		</tr>
+		<tr>
+			<td style="width:600px; font-family:arial; font:11px; color:#CCCCCC;">Received Signal Strength</td>
+      <td width=50><div style="width:50"></div></td>      
+      <td style="width:250px; font-family:arial; font:11px; color:#CCCCCC;"></td>
+      <td></td>
+		</tr>
+		<tr>
+			<td valign=top>
+        <table bgcolor=#111111 width=100%>
+            <tr>
+                <td colspan=4>
+                    <canvas id="canvasBobsToaster" width="800" height="350"></canvas>
+                </td>
+            </tr>
+          <tr>
+            <td width=30 bgcolor=red></td>
+            <td><span style="color:#999999;font-family:arial;font-size:20px">Raw RSSI</td>
+            <td width=30 bgcolor=green></td>
+            <td><span style="color:#999999;font-family:arial;font-size:20px">Smoothed RSSI</td>
+            </tr>
+            
+            <tr bgcolor=#000000><td colspan=4>
+
+                <table border="0" style="margin-top:10px;width:600px">
+                  <tr>
+                      <td class="detailLabel">Detector:</td>
+                      <td class="detailValue" id="txtDetectorValue"></td>
+                      <td width=50></td>
+                      <td class="detailLabel">Target:</td>
+                      <td class="detailValue" id="txtTargetValue"></td>
+                  </tr>
+                  <tr>
+                      <td class="detailLabel">UUID:</td>
+                      <td class="detailValue" id="txtUUIDValue"></td>
+                      <td></td>
+                      <td class="detailLabel">Updated:</td>
+                      <td class="detailValue" id="txtUpdatedValue"></td>
+                  </tr>
+                  <tr>
+                      <td class="detailLabel">Raw RSSI:</td>
+                      <td class="detailValue" id="txtRAWRSSIValue"></td>
+                      <td></td>
+                      <td class="detailLabel">Filtered RSSI:</td>
+                      <td class="detailValue" id="txtFilteredRSSIValue"></td>
+                  </tr>
+                  <tr>
+                      <td></td>
+                      <td></td>
+                      <td></td>
+                      <td class="detailLabel">Distance:</td>
+                      <td class="detailValue" id="txtDistanceValue"></td>
+                  </tr>
+                  
+              </table>                
+                
+            </td></tr>
+        </table>
+
+                
+        </td>
+      <td></td>
+      <td>
+            <canvas id=gaugeDistanceCanvas width=200 height=200 style="margin-bottom:20px">No canvas in your browser...sorry...</canvas>
+            <canvas id=gaugeRSSICanvas width=200 height=200>No canvas in your browser...sorry...</canvas>
+            
+      </td>
+      
+		</tr>
+	</table>
+	
+<script>
+
+    var lastUpdateTime               = new Date().getTime();
+    var fudgeResolution              = 1000;
+    var g_timeseries_RSSI 			 = new TimeSeries();
+    var g_timeseries_RSSISmoothed 	 = new TimeSeries();
+
+    var socket = io.connect("http://" + location.hostname + ":3000");
+
+    var distanceGauge = new steelseries.Radial('gaugeDistanceCanvas', {
+        gaugeType: steelseries.GaugeType.TYPE4,
+        minValue:0,
+        maxValue:300,
+        size: 220,
+        frameDesign: steelseries.FrameDesign.STEEL,
+        knobStyle: steelseries.KnobStyle.STEEL,
+        pointerType: steelseries.PointerType.TYPE6,
+        lcdColor: steelseries.LcdColor.BLUE,
+        section: null,
+        area: null,
+        titleString: 'Distance',
+        unitString: 'Centimetres',
+        threshold: 200,
+        lcdVisible: true,
+        lcdDecimals: 2
+        });
+    distanceGauge.setValue(0);
+
+    var rssiGauge = new steelseries.Radial('gaugeRSSICanvas', {
+        gaugeType: steelseries.GaugeType.TYPE4,
+        minValue:-100,
+        maxValue:100,
+        size: 220,
+        frameDesign: steelseries.FrameDesign.STEEL,
+        knobStyle: steelseries.KnobStyle.STEEL,
+        pointerType: steelseries.PointerType.TYPE6,
+        lcdColor: steelseries.LcdColor.BLUE,
+        section: null,
+        area: null,
+        titleString: 'RSSI',
+        unitString: 'dBm',
+        threshold: -59,
+        lcdVisible: true,
+        lcdDecimals: 2
+        });
+    rssiGauge.setValue(0);
+    
+    socket.on('message', function(message) 
+    {
+      var parsed  = JSON.parse(message);
+      var payload = JSON.parse(parsed)[0];
+      
+      console.log(payload);
+  
+      lastUpdateTime = new Date(payload.lastDetectionTimestamp).getTime();
+      
+      g_timeseries_RSSI.append(lastUpdateTime, parseFloat(payload.rssi));
+      g_timeseries_RSSISmoothed.append(lastUpdateTime, parseFloat(payload.filteredRSSI));
+      
+      distanceGauge.setValueAnimated(payload.calculatedDistance * 100);
+      rssiGauge.setValueAnimated(payload.rssi);
+      
+      $("#txtDetectorValue").html(payload.detectorName);
+      $("#txtTargetValue").html(payload.name);
+      $("#txtUUIDValue").html(payload.uuid);
+      $("#txtRAWRSSIValue").html(payload.rssi);
+      $("#txtFilteredRSSIValue").html(payload.filteredRSSI);
+      $("#txtDistanceValue").html(payload.calculatedDistance + " metres");
+      $("#txtUpdatedValue").html( new Date(payload.lastDetectionTimestamp).toLocaleTimeString());
+      
+      
+
+    })
+
+    function createTimeline() 
+    {
+      var chart = new SmoothieChart();
+      chart.addTimeSeries(g_timeseries_RSSI, { strokeStyle: 'rgb(255, 0, 0)', fillStyle: 'rgba(128, 0, 0, 0.4)', lineWidth: 4 });
+      chart.addTimeSeries(g_timeseries_RSSISmoothed, { strokeStyle: 'rgb(0, 255, 0)', fillStyle: 'rgba(0, 128, 0, 0.3)', lineWidth: 4 });
+      chart.streamTo(document.getElementById("canvasBobsToaster"), 5000);
+    }
+
+	
+</script>
+
+</body>
+</html>
